@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 
 import { CodeRow } from "@/components/game/code-row";
 import { ColorPalette } from "@/components/game/color-palette";
+import {
+  BoardRowShell,
+  BOARD_PEG_SLOT_CLASS,
+} from "@/components/game/board-row-shell";
 import { Peg } from "@/components/game/peg";
 import { emptyCode } from "@/lib/game/rules";
 import { CODE_LENGTH, MAX_GUESSES, type Color, type PublicRoomState } from "@/lib/game/types";
@@ -53,12 +57,32 @@ export function GameBoard({
   }, [state.guesses]);
 
   function placeColor(slot: number, color: Color) {
+    setSelectedColor(color);
     setDraft((prev) => {
       const next = [...prev];
       next[slot] = color;
       return next;
     });
     setActiveSlot(Math.min(slot + 1, CODE_LENGTH - 1));
+  }
+
+  function moveSlot(from: number, to: number) {
+    if (from === to) {
+      setActiveSlot(to);
+      return;
+    }
+    setDraft((prev) => {
+      const next = [...prev];
+      const moving = next[from];
+      if (!moving) {
+        return prev;
+      }
+      const target = next[to];
+      next[from] = target;
+      next[to] = moving;
+      return next;
+    });
+    setActiveSlot(to);
   }
 
   function handleSlotClick(index: number) {
@@ -97,14 +121,14 @@ export function GameBoard({
 
   const phaseCopy = (() => {
     switch (state.phase) {
-      case "setting":
-        return isSetter
-          ? "Compose a secret code of 4 pegs, then lock it in."
-          : "Waiting for your opponent to set the secret code…";
       case "guessing":
         return isBreaker
-          ? "Crack the code. Red keys = exact. White keys = wrong place."
+          ? "Drag pegs onto your guess row, or tap to place. Red tabs (right) = exact."
           : "Your opponent is guessing. Watch the board.";
+      case "setting":
+        return isSetter
+          ? "Drag pegs into place or tap colors to set your secret."
+          : "Waiting for your opponent to set the secret code…";
       case "reveal":
         return "Round over. Reveal the secret, then continue.";
       case "match_over":
@@ -133,34 +157,46 @@ export function GameBoard({
           state.phase === "guessing" ||
           state.phase === "reveal" ||
           state.phase === "match_over") && (
-          <div className="mb-4 rounded-lg border border-dashed border-[#6b5438] bg-[#120e0a] px-3 py-3">
-            <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[#8f7a5e]">
+          <div className="mb-4 rounded-lg border border-dashed border-[#6b5438] bg-[#120e0a] py-3">
+            <p className="mb-2 px-1 text-[11px] uppercase tracking-[0.16em] text-[#8f7a5e] sm:px-3">
               Secret
             </p>
-            <div className="flex items-center justify-center gap-2">
-              {(state.secret ?? emptyCode()).map((color, index) => (
-                <Peg
-                  key={index}
-                  color={
-                    state.secret
-                      ? color
-                      : isSetter && state.phase === "setting"
-                        ? null
-                        : null
-                  }
-                  muted={!state.secret && !(isSetter && state.phase === "setting")}
-                />
-              ))}
-              {!state.secret && !(isSetter && state.phase === "setting") ? (
-                <span className="ml-2 text-xs tracking-wide text-[#8f7a5e]">
-                  Hidden
-                </span>
-              ) : null}
+            <div className="px-1 sm:px-3">
+              <BoardRowShell
+                pegTrackClassName="border-dashed border-[#6b5438] bg-[#120e0a]"
+                rightRail={
+                  !state.secret &&
+                  !(isSetter && state.phase === "setting")
+                    ? (
+                        <span className="pl-1 text-xs tracking-wide text-[#8f7a5e]">
+                          Hidden
+                        </span>
+                      )
+                    : null
+                }
+                pegs={(state.secret ?? emptyCode()).map((color, index) => (
+                  <div key={index} className={BOARD_PEG_SLOT_CLASS}>
+                    <Peg
+                      color={
+                        state.secret
+                          ? color
+                          : isSetter && state.phase === "setting"
+                            ? null
+                            : null
+                      }
+                      muted={
+                        !state.secret &&
+                        !(isSetter && state.phase === "setting")
+                      }
+                    />
+                  </div>
+                ))}
+              />
             </div>
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 px-1 sm:px-3">
           {rows.map((row, index) => (
             <CodeRow
               key={index}
@@ -182,10 +218,14 @@ export function GameBoard({
             code={draft}
             activeIndex={activeSlot}
             onSelectSlot={handleSlotClick}
+            onPlaceColor={placeColor}
+            onMoveSlot={moveSlot}
+            enableDrag
           />
           <ColorPalette
             selected={selectedColor}
             onSelect={handlePaletteSelect}
+            enableDrag
           />
           <div className="flex justify-center gap-3">
             <button

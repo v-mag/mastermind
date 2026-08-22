@@ -139,8 +139,8 @@ export function HomeLobby() {
         <p className="uppercase tracking-[0.16em] text-[#a89070]">Rules</p>
         <ul className="mt-2 list-disc space-y-1 pl-4">
           <li>4 pegs, 8 colors, duplicates allowed</li>
-          <li>Red key = right color & position</li>
-          <li>White key = right color, wrong position</li>
+          <li>Red tab (right) = right color & position</li>
+          <li>White tab (left) = right color, wrong position</li>
           <li>Score = 11 − guesses if cracked, else 0</li>
         </ul>
       </div>

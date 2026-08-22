@@ -10,6 +10,14 @@ type PegProps = {
   onClick?: () => void;
   ariaLabel?: string;
   muted?: boolean;
+  draggable?: boolean;
+  dragging?: boolean;
+  dropTarget?: boolean;
+  pointerPassThrough?: boolean;
+  onDragStart?: (event: React.DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: (event: React.DragEvent<HTMLButtonElement>) => void;
+  onDragOver?: (event: React.DragEvent<HTMLButtonElement>) => void;
+  onDrop?: (event: React.DragEvent<HTMLButtonElement>) => void;
 };
 
 const SIZE_CLASS = {
@@ -25,22 +33,44 @@ export function Peg({
   onClick,
   ariaLabel,
   muted = false,
+  draggable = false,
+  dragging = false,
+  dropTarget = false,
+  pointerPassThrough = false,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
 }: PegProps) {
-  const interactive = typeof onClick === "function";
+  const interactive =
+    typeof onClick === "function" || draggable || dropTarget;
   const style = color ? COLOR_STYLES[color] : null;
 
   return (
     <button
       type="button"
-      disabled={!interactive}
-      onClick={onClick}
+      disabled={!interactive && !pointerPassThrough}
+      draggable={draggable && color !== null}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onClick={pointerPassThrough ? undefined : onClick}
       aria-label={ariaLabel ?? (color ? COLOR_STYLES[color].label : "Empty peg")}
       className={[
         SIZE_CLASS[size],
         "relative shrink-0 rounded-full border transition-transform",
-        interactive ? "cursor-pointer hover:scale-105 active:scale-95" : "cursor-default",
+        pointerPassThrough ? "pointer-events-none" : "",
+        !pointerPassThrough && interactive
+          ? "cursor-pointer hover:scale-105 active:scale-95 touch-none"
+          : "cursor-default",
+        draggable && color && !pointerPassThrough
+          ? "cursor-grab active:cursor-grabbing"
+          : "",
+        dropTarget ? "cursor-copy" : "",
         selected ? "ring-2 ring-[#d4a574] ring-offset-2 ring-offset-[#1a1510]" : "",
         muted ? "opacity-50" : "",
+        dragging ? "scale-95 opacity-40" : "",
       ].join(" ")}
       style={
         style

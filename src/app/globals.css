@@ -33,3 +33,60 @@ body {
   background: rgba(212, 165, 116, 0.35);
   color: #fff6e8;
 }
+
+/* Physical-board side tabs: white slides left, red slides right */
+.feedback-tab {
+  width: 6px;
+  opacity: 0;
+  transform: scaleX(0.15);
+  transition:
+    width 0.45s cubic-bezier(0.34, 1.2, 0.48, 1),
+    opacity 0.35s ease,
+    transform 0.45s cubic-bezier(0.34, 1.2, 0.48, 1),
+    box-shadow 0.35s ease;
+  box-shadow: none;
+}
+
+.feedback-tab-left {
+  transform-origin: right center;
+}
+
+.feedback-tab-right {
+  transform-origin: left center;
+}
+
+.feedback-tab-white {
+  background: linear-gradient(180deg, #f5f0e8 0%, #d8d0c4 55%, #b8aea2 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.feedback-tab-red {
+  background: linear-gradient(180deg, #ef5350 0%, #c62828 55%, #8e1c1c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 8px rgba(198, 40, 40, 0.35);
+}
+
+.feedback-tab-collapsed {
+  width: 6px;
+  opacity: 0;
+  transform: scaleX(0.1);
+}
+
+.feedback-tab-extended.feedback-tab-left {
+  width: 32px;
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.feedback-tab-extended.feedback-tab-right {
+  width: 32px;
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback-tab {
+    transition: none;
+  }
+}
