@@ -8,13 +8,15 @@ import { Peg } from "@/components/game/peg";
 import { Scoreboard } from "@/components/game/scoreboard";
 import { useGameRoom } from "@/hooks/use-game-room";
 import { emptyCode } from "@/lib/game/rules";
+import type { RoomSettings } from "@/lib/game/types";
 
 type RoomClientProps = {
   roomCode: string;
   playerName: string;
+  roomSettings?: Partial<RoomSettings>;
 };
 
-export function RoomClient({ roomCode, playerName }: RoomClientProps) {
+export function RoomClient({ roomCode, playerName, roomSettings }: RoomClientProps) {
   const {
     playerId,
     state,
@@ -24,7 +26,7 @@ export function RoomClient({ roomCode, playerName }: RoomClientProps) {
     setSecret,
     guess,
     continueMatch,
-  } = useGameRoom({ roomCode, playerName });
+  } = useGameRoom({ roomCode, playerName, roomSettings });
   const [copied, setCopied] = useState(false);
 
   const shareUrl = useMemo(() => {
@@ -59,6 +61,11 @@ export function RoomClient({ roomCode, playerName }: RoomClientProps) {
         : "It's a draw"
       : null;
 
+  const modeLabel =
+    state?.gameMode === "fixed_guesser"
+      ? "Fixed guesser"
+      : "Alternating roles";
+
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -72,6 +79,7 @@ export function RoomClient({ roomCode, playerName }: RoomClientProps) {
           <p className="mt-1 text-sm text-[#a89070]">
             {connected ? "Connected" : "Connecting…"}
             {playerName ? ` · ${playerName}` : ""}
+            {state ? ` · ${state.totalRounds} rounds · ${modeLabel}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -113,8 +121,14 @@ export function RoomClient({ roomCode, playerName }: RoomClientProps) {
           </p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-[#a89070]">
             Share the room code <span className="text-[#d4a574]">{roomCode}</span>{" "}
-            or the link. Round 1 starts when both players are in.
+            or the link. The match starts when both players are in.
           </p>
+          {state ? (
+            <p className="mx-auto mt-2 max-w-sm text-xs text-[#8f7a5e]">
+              {state.totalRounds} {state.totalRounds === 1 ? "round" : "rounds"} ·{" "}
+              {modeLabel}
+            </p>
+          ) : null}
           <p className="mt-4 text-xs uppercase tracking-[0.16em] text-[#8f7a5e]">
             Players {state?.players.length ?? 0} / 2
           </p>

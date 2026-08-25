@@ -2,18 +2,20 @@ import { Server, type Connection, type ConnectionContext } from "partyserver";
 
 import { parseClientMessage, type ServerMessage } from "../src/lib/game/protocol";
 import {
+  defaultRoomSettings,
   evaluateGuess,
   isValidCode,
+  normalizeRoomSettings,
   scoreRound,
 } from "../src/lib/game/rules";
 import {
   MAX_GUESSES,
   MAX_PLAYERS,
-  TOTAL_ROUNDS,
   type Code,
   type Phase,
   type Player,
   type PublicRoomState,
+  type RoomSettings,
   type RoomState,
 } from "../src/lib/game/types";
 
@@ -22,12 +24,16 @@ type ConnectionPlayerState = {
 };
 
 function createInitialState(roomCode: string): RoomState {
+  const settings = defaultRoomSettings();
   return {
     roomCode,
     phase: "lobby",
     players: [],
     hostId: null,
     round: 1,
+    totalRounds: settings.totalRounds,
+    gameMode: settings.gameMode,
+    fixedGuesser: settings.fixedGuesser,
     setterId: null,
     breakerId: null,
     guesses: [],
@@ -49,7 +55,14 @@ export class GameRoom extends Server<Env> {
       secret: Code | null;
     }>("match");
     if (stored) {
-      this.game = stored.game;
+      const defaults = defaultRoomSettings();
+      this.game = {
+        ...createInitialState(stored.game.roomCode),
+        ...stored.game,
+        totalRounds: stored.game.totalRounds ?? defaults.totalRounds,
+        gameMode: stored.game.gameMode ?? defaults.gameMode,
+        fixedGuesser: stored.game.fixedGuesser ?? defaults.fixedGuesser,
+      };
       this.secret = stored.secret;
     } else {
       this.game = createInitialState(this.name.toUpperCase());
@@ -75,7 +88,7 @@ export class GameRoom extends Server<Env> {
 
     switch (parsed.type) {
       case "join":
-        await this.handleJoin(connection, parsed.playerId, parsed.name);
+        await this.handleJoin(connection, parsed.playerId, parsed.name, parsed.settings);
         break;
       case "setSecret":
         await this.handleSetSecret(connection, parsed.code);
@@ -119,6 +132,7 @@ export class GameRoom extends Server<Env> {
     connection: Connection<ConnectionPlayerState>,
     playerId: string,
     name: string,
+    settings?: Partial<RoomSettings>,
   ) {
     if (!playerId || typeof playerId !== "string") {
       this.sendError(connection, "Missing player id.");
@@ -160,6 +174,9 @@ export class GameRoom extends Server<Env> {
 
     if (!this.game.hostId) {
       this.game.hostId = playerId;
+      if (settings) {
+        this.applyRoomSettings(settings);
+      }
     }
 
     if (this.game.players.length === MAX_PLAYERS) {
@@ -168,6 +185,16 @@ export class GameRoom extends Server<Env> {
 
     await this.persist();
     this.broadcastState();
+  }
+
+  private applyRoomSettings(partial: Partial<RoomSettings>) {
+    if (this.game.phase !== "lobby") {
+      return;
+    }
+    const next = normalizeRoomSettings(partial);
+    this.game.totalRounds = next.totalRounds;
+    this.game.gameMode = next.gameMode;
+    this.game.fixedGuesser = next.fixedGuesser;
   }
 
   private startRound(round: number) {
@@ -179,7 +206,16 @@ export class GameRoom extends Server<Env> {
     this.game.lastError = null;
     this.game.phase = "setting";
 
-    if (round === 1) {
+    if (this.game.gameMode === "fixed_guesser") {
+      const breakerId =
+        this.game.fixedGuesser === "host" ? host.id : guest.id;
+      const setterId = breakerId === host.id ? guest.id : host.id;
+      this.game.breakerId = breakerId;
+      this.game.setterId = setterId;
+      return;
+    }
+
+    if (round % 2 === 1) {
       this.game.setterId = host.id;
       this.game.breakerId = guest.id;
     } else {
@@ -262,7 +298,7 @@ export class GameRoom extends Server<Env> {
       return;
     }
 
-    if (this.game.round >= TOTAL_ROUNDS) {
+    if (this.game.round >= this.game.totalRounds) {
       this.game.phase = "match_over";
       this.game.winnerId = this.computeWinnerId();
     } else {

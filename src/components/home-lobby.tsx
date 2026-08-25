@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 
-import { createRoomCode, normalizeRoomCode } from "@/lib/game/rules";
+import {
+  createRoomCode,
+  normalizeRoomCode,
+} from "@/lib/game/rules";
+import type { FixedGuesserRole, GameMode } from "@/lib/game/types";
 
 const NAME_KEY = "mastermind-player-name";
 
@@ -37,7 +41,14 @@ export function HomeLobby() {
   const router = useRouter();
   const [name, persistName] = useStoredName();
   const [joinCode, setJoinCode] = useState("");
-  function goToRoom(code: string) {
+  const [totalRounds, setTotalRounds] = useState(2);
+  const [gameMode, setGameMode] = useState<GameMode>("alternating");
+  const [fixedGuesser, setFixedGuesser] = useState<FixedGuesserRole>("guest");
+
+  function goToRoom(
+    code: string,
+    settings?: { totalRounds: number; gameMode: GameMode; fixedGuesser: FixedGuesserRole },
+  ) {
     const cleaned = normalizeRoomCode(code);
     if (cleaned.length < 4) {
       return;
@@ -49,13 +60,24 @@ export function HomeLobby() {
     if (name.trim()) {
       params.set("name", name.trim());
     }
+    if (settings) {
+      params.set("rounds", String(settings.totalRounds));
+      params.set("mode", settings.gameMode === "fixed_guesser" ? "fixed" : "alternating");
+      if (settings.gameMode === "fixed_guesser") {
+        params.set("guesser", settings.fixedGuesser);
+      }
+    }
     const qs = params.toString();
     router.push(`/room/${cleaned}${qs ? `?${qs}` : ""}`);
   }
 
   function onCreate(event: FormEvent) {
     event.preventDefault();
-    goToRoom(createRoomCode());
+    goToRoom(createRoomCode(), {
+      totalRounds,
+      gameMode,
+      fixedGuesser,
+    });
   }
 
   function onJoin(event: FormEvent) {
@@ -67,14 +89,14 @@ export function HomeLobby() {
     <div className="mx-auto flex w-full max-w-lg flex-col gap-8">
       <div className="text-center">
         <p className="text-[11px] uppercase tracking-[0.28em] text-[#8f7a5e]">
-          Two players · Alternating rounds
+          Two players · Custom rounds & modes
         </p>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-5xl leading-none tracking-wide text-[#f3e6d0] sm:text-6xl">
           Mastermind
         </h1>
         <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-[#a89070]">
           One player locks a four-peg secret. The other has ten tries to crack
-          it. Then you swap seats for round two. Highest score wins.
+          it. Swap roles each round, or pick one player to guess every round.
         </p>
       </div>
 
@@ -99,8 +121,80 @@ export function HomeLobby() {
           Create a room
         </h2>
         <p className="mt-1 text-sm text-[#8f7a5e]">
-          You set the secret in round 1. Your guest breaks first.
+          Choose how many rounds to play and who guesses.
         </p>
+
+        <label className="mt-4 block space-y-2">
+          <span className="text-[11px] uppercase tracking-[0.18em] text-[#8f7a5e]">
+            Rounds
+          </span>
+          <select
+            value={totalRounds}
+            onChange={(e) => setTotalRounds(Number(e.target.value))}
+            className="w-full rounded-xl border border-[#4a3a28] bg-[#120e0a] px-4 py-3 text-[#f3e6d0] outline-none ring-[#d4a574] focus:ring-1"
+          >
+            {Array.from({ length: 10 }, (_, index) => index + 1).map((rounds) => (
+              <option key={rounds} value={rounds}>
+                {rounds} {rounds === 1 ? "round" : "rounds"}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <fieldset className="mt-4 space-y-2">
+          <legend className="text-[11px] uppercase tracking-[0.18em] text-[#8f7a5e]">
+            Game mode
+          </legend>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#4a3a28] bg-[#120e0a] px-4 py-3">
+            <input
+              type="radio"
+              name="gameMode"
+              value="alternating"
+              checked={gameMode === "alternating"}
+              onChange={() => setGameMode("alternating")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm text-[#f3e6d0]">Alternating roles</span>
+              <span className="mt-0.5 block text-xs text-[#8f7a5e]">
+                Players swap setter and breaker each round.
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#4a3a28] bg-[#120e0a] px-4 py-3">
+            <input
+              type="radio"
+              name="gameMode"
+              value="fixed_guesser"
+              checked={gameMode === "fixed_guesser"}
+              onChange={() => setGameMode("fixed_guesser")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm text-[#f3e6d0]">Fixed guesser</span>
+              <span className="mt-0.5 block text-xs text-[#8f7a5e]">
+                One player guesses every round; the other always sets the code.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+
+        {gameMode === "fixed_guesser" ? (
+          <label className="mt-4 block space-y-2">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-[#8f7a5e]">
+              Who guesses?
+            </span>
+            <select
+              value={fixedGuesser}
+              onChange={(e) => setFixedGuesser(e.target.value as FixedGuesserRole)}
+              className="w-full rounded-xl border border-[#4a3a28] bg-[#120e0a] px-4 py-3 text-[#f3e6d0] outline-none ring-[#d4a574] focus:ring-1"
+            >
+              <option value="guest">Opponent (joiner)</option>
+              <option value="host">Me (room host)</option>
+            </select>
+          </label>
+        ) : null}
+
         <button
           type="submit"
           className="mt-5 w-full rounded-full bg-[#d4a574] py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a120c] hover:bg-[#e0b888]"

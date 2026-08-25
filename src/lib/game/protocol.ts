@@ -1,7 +1,7 @@
-import type { Code, PublicRoomState } from "./types";
+import type { Code, PublicRoomState, RoomSettings } from "./types";
 
 export type ClientMessage =
-  | { type: "join"; playerId: string; name: string }
+  | { type: "join"; playerId: string; name: string; settings?: Partial<RoomSettings> }
   | { type: "setSecret"; code: Code }
   | { type: "guess"; code: Code }
   | { type: "continue" };
@@ -17,6 +17,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       playerId?: unknown;
       name?: unknown;
       code?: unknown;
+      settings?: unknown;
     };
 
     if (!data || typeof data.type !== "string") {
@@ -28,10 +29,15 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         if (typeof data.playerId !== "string") {
           return null;
         }
+        const settings =
+          data.settings && typeof data.settings === "object"
+            ? (data.settings as Partial<RoomSettings>)
+            : undefined;
         return {
           type: "join",
           playerId: data.playerId,
           name: typeof data.name === "string" ? data.name : "Player",
+          settings,
         };
       }
       case "setSecret": {

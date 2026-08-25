@@ -144,7 +144,7 @@ export function GameBoard({
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-[#8f7a5e]">
-              Round {state.round} / 2
+              Round {state.round} / {state.totalRounds}
             </p>
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[#f3e6d0]">
               Decoding Board
@@ -254,7 +254,7 @@ export function GameBoard({
             onClick={onContinue}
             className="rounded-full bg-[#d4a574] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a120c]"
           >
-            {state.round >= 2 ? "See Final Score" : "Continue to Round 2"}
+            {state.round >= state.totalRounds ? "See Final Score" : "Next Round"}
           </button>
         </div>
       ) : null}

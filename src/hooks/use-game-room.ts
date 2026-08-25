@@ -6,11 +6,12 @@ import type { PartySocket } from "partysocket";
 
 import type { ClientMessage, ServerMessage } from "@/lib/game/protocol";
 import { getOrCreatePlayerId } from "@/lib/game/client";
-import type { Code, PublicRoomState } from "@/lib/game/types";
+import type { Code, PublicRoomState, RoomSettings } from "@/lib/game/types";
 
 type UseGameRoomOptions = {
   roomCode: string;
   playerName: string;
+  roomSettings?: Partial<RoomSettings>;
 };
 
 type UseGameRoomResult = {
@@ -39,6 +40,7 @@ function usePlayerId(): string {
 export function useGameRoom({
   roomCode,
   playerName,
+  roomSettings,
 }: UseGameRoomOptions): UseGameRoomResult {
   const playerId = usePlayerId();
   const [state, setState] = useState<PublicRoomState | null>(null);
@@ -92,9 +94,10 @@ export function useGameRoom({
       type: "join",
       playerId,
       name: playerName || "Player",
+      settings: roomSettings,
     });
     joinedRef.current = true;
-  }, [playerId, connected, playerName, send, socket]);
+  }, [playerId, connected, playerName, roomSettings, send, socket]);
 
   const setSecret = useCallback(
     (code: Code) => {
